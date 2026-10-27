@@ -6,7 +6,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.routers import tasks, projects
 
-# Configuración del logger interno para registrar stacktraces en el servidor
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("taskflow")
 
@@ -16,10 +15,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-
 # 1. Configuración de CORSMiddleware
-# Permitimos comunicación desde frontend local (Vite/React en puerto 5173)
-
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -34,30 +30,24 @@ app.add_middleware(
     expose_headers=["X-Process-Time", "X-Request-ID"],
 )
 
-
-# 2. Middleware personalizado: Medición de tiempo de respuesta y X-Request-ID
-
+# 2. Middleware personalizado (Tiempo de proceso e ID)
 @app.middleware("http")
-def add_process_time_and_request_id(request: Request, call_next):
+async def add_process_time_and_request_id(request: Request, call_next):
     start_time = time.perf_counter()
     request_id = str(uuid.uuid4())
     
-    response = call_next(request)
+    response = await call_next(request)
     
-    process_time = (time.perf_counter() - start_time) * 1000  # Convertir a ms
+    process_time = (time.perf_counter() - start_time) * 1000
     response.headers["X-Process-Time"] = f"{process_time:.2f}ms"
     response.headers["X-Request-ID"] = request_id
     
     return response
 
-# 3. Exception Handler Global: Captura de errores no controlados (500)
-
+# 3. Exception Handler Global (Solo captura errores de lógica de negocio)
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    # Registro de error y stacktrace completo únicamente en logs internos
     logger.error(f"Error no controlado en {request.url}: {exc}", exc_info=True)
-    
-    # Respuesta genérica al cliente sin exponer datos sensibles ni stacktrace
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
@@ -66,7 +56,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         }
     )
 
-# Endpoints globales de salud/sistema
+# Endpoints del sistema
 @app.get("/health", tags=["system"])
 def health_check():
     return {"status": "ok"}
