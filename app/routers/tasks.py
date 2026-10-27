@@ -24,3 +24,10 @@ def create_task(task_in: TaskCreate):
         completed=False,
         created_at=datetime.now()
     )
+
+
+# Endpoint de prueba 
+@router.get("/error-test", summary="Provocar un error no controlado de prueba")
+def trigger_error():
+    """Fuerza un error imprevisto (división por cero) para probar el Exception Handler."""
+    return 1 / 0
