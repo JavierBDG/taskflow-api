@@ -4,14 +4,20 @@ import logging
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+from app.database import engine, Base
+import app.models  # Importa los modelos para que Base los registre
 from app.routers import tasks, projects
+
+# Crear las tablas en la base de datos SQLite si no existen
+Base.metadata.create_all(bind=engine)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("taskflow")
 
 app = FastAPI(
     title="TaskFlow API",
-    description="API de gestión de tareas y proyectos - Módulo de Desarrollo Backend",
+    description="API de gestión de tareas y proyectos - Módulo de Desarrollo Backend con SQLAlchemy",
     version="1.0.0"
 )
 
@@ -30,7 +36,7 @@ app.add_middleware(
     expose_headers=["X-Process-Time", "X-Request-ID"],
 )
 
-# 2. Middleware personalizado (Tiempo de proceso e ID)
+# 2. Middleware personalizado (Medición de tiempo y Request ID)
 @app.middleware("http")
 async def add_process_time_and_request_id(request: Request, call_next):
     start_time = time.perf_counter()
@@ -44,7 +50,7 @@ async def add_process_time_and_request_id(request: Request, call_next):
     
     return response
 
-# 3. Exception Handler Global (Solo captura errores de lógica de negocio)
+# 3. Exception Handler Global
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Error no controlado en {request.url}: {exc}", exc_info=True)
